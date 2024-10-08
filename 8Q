@@ -1,0 +1,59 @@
+N = 64; 
+CP_len = 16; 
+EbN0_db = 0:2:30; 
+numSymbols = 1000; 
+
+M_values = [4,16,64,256]; 
+SER = zeros(length(EbN0_db), length(M_values)); 
+
+for mIdx = 1:length(M_values)
+    M = M_values(mIdx); 
+    
+    for idx = 1:length(EbN0_db)
+        
+        data = randi([0 M-1], N, numSymbols);
+        
+        
+        modData = qammod(data, M);
+        
+        
+        ifftData = ifft(modData, N);
+        
+      
+        cpData = [ifftData(end-CP_len+1:end, :); ifftData];
+        
+        
+        txSignal = cpData(:);
+        
+        
+        snr = EbN0_db(idx) + 10*log10(log2(M));
+        rxSignal = awgn(txSignal, snr, 'measured');
+        
+        
+        rxSignal = reshape(rxSignal, N+CP_len, numSymbols);
+        
+        
+        rxSignalNoCp = rxSignal(CP_len+1:end, :);
+        
+        
+        fftData = fft(rxSignalNoCp, N);
+        
+        
+        demodData = qamdemod(fftData, M);
+        
+        
+        numSymbolErrors = sum(sum(data ~= demodData));
+        
+        
+        SER(idx, mIdx) = numSymbolErrors / (N * numSymbols);
+    end
+end
+
+
+figure;
+semilogy(EbN0_db, SER, 'o-');
+title('MQAM-CP-OFDM SER vs SNR for Multiple Modulation Orders');
+xlabel('SNR (dB)');
+ylabel('Symbol Error Rate (SER)');
+grid on;
+
